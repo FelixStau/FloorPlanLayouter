@@ -19,14 +19,15 @@ from random import randrange
 
 
 class FloorPlanner:
-    def __init__(self, grid_size=10, houseSize=2):
-        self.gridSize = grid_size
+    def __init__(self, length, width, houseSize=2):
+        self.length = length
+        self.width = width
         self.kernelSize = houseSize
-        self.floors = [np.zeros(shape=(grid_size, grid_size))]
+        self.floors = [np.zeros(shape=(length, width))]
 
     def groundFloor(self):
-        for i in range(self.gridSize // self.kernelSize):
-            for j in range(self.gridSize // self.kernelSize):
+        for i in range(self.width // self.kernelSize):
+            for j in range(self.length // self.kernelSize):
                 x = i * self.kernelSize
                 y = j * self.kernelSize
                 kernel = \
@@ -45,9 +46,9 @@ class FloorPlanner:
             else:
                 return counter[number]
 
-        self.floors.append(np.ones(shape=(self.gridSize, self.gridSize)))
-        for x in range(self.gridSize - self.kernelSize):
-            for y in range(self.gridSize - self.kernelSize):
+        self.floors.append(np.ones(shape=(self.length, self.width)))
+        for x in range(self.width - self.kernelSize):
+            for y in range(self.length - self.kernelSize):
                 previousFloor = self.floors[-2][y:y + self.kernelSize, x:x +
                                                 self.kernelSize]
                 newFloor = self.floors[-1][y:y + self.kernelSize, x:x +
@@ -69,8 +70,8 @@ class FloorPlanner:
 
     def render(self, paddingX, paddingY, paddingZ, plateSize, cubeSize):
         # -> Ground Floor
-        for y_idx in range(self.gridSize):
-            for x_idx in range(self.gridSize):
+        for y_idx in range(self.length):
+            for x_idx in range(self.width):
                 # -> Balcony
                 if self.floors[0][y_idx, x_idx] == 1:
                     cube = bpy.ops.mesh.primitive_plane_add(
@@ -85,8 +86,8 @@ class FloorPlanner:
                                   y_idx + paddingY * y_idx, 0))
         # -> Upper Floors
         for floor_idx in range(1, len(self.floors)):
-            for y_idx in range(self.gridSize):
-                for x_idx in range(self.gridSize):
+            for y_idx in range(self.length):
+                for x_idx in range(self.width):
                     # -> Balcony
                     if self.floors[floor_idx][y_idx, x_idx] == 2:
                         cube = bpy.ops.mesh.primitive_plane_add(
@@ -105,33 +106,33 @@ class FloorPlanner:
                         pass
 
 
-def update_gridSize(self, context):
-    print("Update GridSize")
-    print(self)
-
-
 class GenericHomePlannerOperator(Operator):
     """Create a new Mesh Object"""
     bl_idname = "mesh.generic_home_planner"
     bl_label = "Add GenericHousing"
     bl_options = {'REGISTER', 'UNDO'}
     plannerInst = None
-    oldGridSize = 0
-    gridSize = bpy.props.IntProperty(name="Grid Size",
-                                     default=20,
-                                     min=4,
-                                     max=1000)
+    oldGridLength = 0
+    oldGridWidth = 0
+    gridLength = bpy.props.IntProperty(name="Grid Length",
+                                       default=10,
+                                       min=2,
+                                       max=100)
+    gridWidth = bpy.props.IntProperty(name="Grid Width",
+                                      default=10,
+                                      min=2,
+                                      max=100)
     paddingX = bpy.props.FloatProperty(name="Padding X",
                                        default=1,
-                                       min=0.1,
+                                       min=0,
                                        max=100)
     paddingY = bpy.props.FloatProperty(name="Padding Y",
                                        default=1,
-                                       min=0.1,
+                                       min=0,
                                        max=100)
     paddingZ = bpy.props.FloatProperty(name="Padding Z",
                                        default=1,
-                                       min=0.1,
+                                       min=0,
                                        max=100)
     plateSize = bpy.props.FloatProperty(name="Plate Size",
                                         default=1.0,
@@ -143,19 +144,19 @@ class GenericHomePlannerOperator(Operator):
                                        max=100)
 
     def execute(self, context):
-        print(self.oldGridSize)
-        if self.oldGridSize != self.gridSize:
+        if self.oldGridLength != self.gridLength or \
+           self.oldGridWidth != self.gridWidth:
             self.report({'INFO'}, "Create new Planner")
-            self.plannerInst = FloorPlanner(self.gridSize)
+            self.plannerInst = FloorPlanner(self.gridLength, self.gridWidth)
             self.report({'INFO'}, "Planning")
             self.plannerInst.plan()
-            self.oldGridSize = self.gridSize
+            self.oldGridLength = self.gridLength
+            self.oldGridWidth = self.gridWidth
         self.report({'INFO'}, "Render Planning")
         self.plannerInst.render(self.paddingX, self.paddingY, self.paddingZ,
                                 self.plateSize, self.cubeSize)
         # useful for development when the mesh may be invalid.
         # mesh.validate(verbose=True)
-        #object_data_add(context, mesh, operator=self)
         return {'FINISHED'}
 
     def invoke(self, context, event):
