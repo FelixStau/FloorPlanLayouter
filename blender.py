@@ -67,93 +67,87 @@ class FloorPlanner:
             self.upperFloor()
         print("Planning - DONE")
         
-    def render(self, col):
+    def render(self, paddingX, paddingY, paddingZ, plateSize, cubeSize):
         # -> Ground Floor
-        padding = 2
         for y_idx in range(self.gridSize):
             for x_idx in range(self.gridSize):
                 # -> Balcony
                 if self.floors[0][y_idx, x_idx] == 1:
-                    cube = bpy.ops.mesh.primitive_plane_add(
-                        location=(x_idx + padding * x_idx, y_idx + padding * y_idx, 0))
-                    #col.objects.link(cube)
+                    cube = bpy.ops.mesh.primitive_plane_add(size=plateSize, 
+                        location=(x_idx + paddingX * x_idx, y_idx + paddingY * y_idx, 0))
                 # -> house
                 else:
-                    cube = bpy.ops.mesh.primitive_cube_add(
-                        location=(x_idx + padding * x_idx, y_idx + padding * y_idx, 0))
-                    #col.objects.link(cube)
-
+                    cube = bpy.ops.mesh.primitive_cube_add(size=cubeSize,
+                        location=(x_idx + paddingX * x_idx, y_idx + paddingY * y_idx, 0))
         # -> Upper Floors
         for floor_idx in range(1, len(self.floors)):
             for y_idx in range(self.gridSize):
                 for x_idx in range(self.gridSize):
                     # -> Balcony
                     if self.floors[floor_idx][y_idx, x_idx] == 2:
-                        cube = bpy.ops.mesh.primitive_plane_add(
-                            location=(x_idx + padding * x_idx, y_idx + padding * y_idx, floor_idx + padding * floor_idx))
-                        #col.objects.link(cube)
+                        cube = bpy.ops.mesh.primitive_plane_add(size=plateSize,
+                            location=(x_idx + paddingX * x_idx, y_idx + paddingY * y_idx, floor_idx + paddingZ * floor_idx))
                     # -> house
                     elif self.floors[floor_idx][y_idx, x_idx] == 0:
-                        cube = bpy.ops.mesh.primitive_cube_add(
-                            location=(x_idx + padding * x_idx, y_idx + padding * y_idx, floor_idx  + padding * floor_idx))
-                        #col.objects.link(cube)
+                        cube = bpy.ops.mesh.primitive_cube_add(size=cubeSize,
+                            location=(x_idx + paddingX * x_idx, y_idx + paddingY * y_idx, floor_idx  + paddingZ * floor_idx))
                     else:
                         pass
 
+def update_gridSize(self, context):
+    print("Update GridSize")
+    print(self)
 
-class OBJECT_OT_add_object(Operator, AddObjectHelper):
+class GenericHomePlannerOperator(Operator):
     """Create a new Mesh Object"""
-    bl_idname = "mesh.add_object"
+    bl_idname = "mesh.generic_home_planner"
     bl_label = "Add GenericHousing"
     bl_options = {'REGISTER', 'UNDO'}
-    size = bpy.props.IntProperty(name="Size", default=100, min=10, max=1000)
-
-    scale: FloatVectorProperty(
-        name="scale",
-        default=(1.0, 1.0, 1.0),
-        subtype='TRANSLATION',
-        description="scaling",
-    )
+    plannerInst = None
+    gridSize = bpy.props.IntProperty(name="Grid Size", default=20, min=4, max=1000)
+    paddingX = bpy.props.FloatProperty(name="Padding X", default=1, min=0.1, max=100)
+    paddingY = bpy.props.FloatProperty(name="Padding Y", default=1, min=0.1, max=100)
+    paddingZ = bpy.props.FloatProperty(name="Padding Z", default=1, min=0.1, max=100)
+    plateSize = bpy.props.FloatProperty(name="Plate Size", default=1.0, min=1.0, max=100)
+    cubeSize = bpy.props.FloatProperty(name="Cube Size", default=1.0, min=1.0, max=100)
 
     def execute(self, context):
-        col = bpy.data.collections.new("Housing")
-        inst = FloorPlanner(self.size)
-        inst.plan()
-        mesh = bpy.data.meshes.new(name="GenericHousing")
-        inst.render(col)
+        print(self.gridSize)
+        if self.plannerInst is None:
+            self.report({'INFO'}, "Create new Planner")
+            inst = FloorPlanner(self.gridSize)
+            self.report({'INFO'}, "Planning")
+            inst.plan()
+        self.report({'INFO'}, "Render Planning")
+        inst.render(self.paddingX,
+                    self.paddingY, 
+                    self.paddingZ,
+                    self.plateSize,
+                    self.cubeSize)
         # useful for development when the mesh may be invalid.
         # mesh.validate(verbose=True)
-        object_data_add(context, mesh, operator=self)
+        #object_data_add(context, mesh, operator=self)
         return {'FINISHED'}
-
+    
+    def invoke(self, context, event):
+        wm = context.window_manager
+        return wm.invoke_props_dialog(self)
 
 # Registration
 
 def add_object_button(self, context):
     self.layout.operator(
-        OBJECT_OT_add_object.bl_idname,
+        GenericHomePlannerOperator.bl_idname,
         text="GenericHousing",
         icon='PLUGIN')
 
-
-# This allows you to right click on a button and link to the manual
-def add_object_manual_map():
-    url_manual_prefix = "https://docs.blender.org/manual/en/dev/"
-    url_manual_mapping = (
-        ("bpy.ops.mesh.add_object", "editors/3dview/object"),
-    )
-    return url_manual_prefix, url_manual_mapping
-
-
 def register():
-    bpy.utils.register_class(OBJECT_OT_add_object)
-    bpy.utils.register_manual_map(add_object_manual_map)
+    bpy.utils.register_class(GenericHomePlannerOperator)
     bpy.types.VIEW3D_MT_mesh_add.append(add_object_button)
 
 
 def unregister():
-    bpy.utils.unregister_class(OBJECT_OT_add_object)
-    bpy.utils.unregister_manual_map(add_object_manual_map)
+    bpy.utils.unregister_class(GenericHomePlannerOperator)
     bpy.types.VIEW3D_MT_mesh_add.remove(add_object_button)
 
 
