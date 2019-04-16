@@ -82,6 +82,14 @@ class FloorPlanner:
                     self.floors[-1][y:y + self.kernelSize, x:x +
                                     self.kernelSize] = foo
 
+    def plan(self):
+        print("Planning Ground Floor")
+        self.groundFloor()
+        while not numpy.all(self.floors[-1]):
+            print("Planning Upper Floor")
+            self.upperFloor()
+        print("Planning - DONE")
+
     def save(self):
         print("Save generated data...")
         curDir = os.path.dirname(os.path.realpath(__file__))
@@ -161,10 +169,8 @@ class FloorPlanner:
 
 
 if __name__ == '__main__':
-    p = FloorPlanner(10)
-    p.groundFloor()
-    p.upperFloor()
-    p.upperFloor()
+    p = FloorPlanner(20)
+    p.plan()
     p.print()
     p.plot()
     p.save()
